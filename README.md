@@ -21,15 +21,15 @@ first. The app must:
 
 ## Team and contributions
 
-> The guide specifies two fellows per team. This repository uses a three-person
-> adaptation (see the working agreement below); confirm three-person teams are
+> The guide specifies two fellows per team.
+> adaptation (see the working agreement below)
 > permitted with your facilitator.
 
 | Engineer | Owns | Files | Contribution summary |
 | --- | --- | --- | --- |
 | A | Ticket management | `campusflow/tickets.py`, `tests/test_tickets.py` | Ticket creation with generated IDs, input validation, the priority engine, listing and lookup. |
 | B | Workflow management | `campusflow/workflow.py`, `tests/test_workflow.py` | Assignment, the open → in_progress → resolved lifecycle, reopening and the ordered work queue. |
-| C | Storage, reports and CLI | `campusflow/storage.py`, `campusflow/reports.py`, `main.py`, `tests/test_storage.py`, `tests/test_reports.py`, `tests/test_cli.py` | Atomic JSON persistence, summary reports and the interactive menu. |
+ Storage, reports and CLI | `campusflow/storage.py`, `campusflow/reports.py`, `main.py`, `tests/test_storage.py`, `tests/test_reports.py`, `tests/test_cli.py` | Atomic JSON persistence, summary reports and the interactive menu. |
 
 _Fill in the engineers' names before submission._
 
@@ -53,20 +53,17 @@ python3 main.py
 ```
 
 The menu keeps running until you choose **Exit**:
-
-| Option | Action |
-| --- | --- |
-| 1 | Create ticket — validates input and calculates priority |
-| 2 | List all tickets |
-| 3 | View one ticket by ID |
-| 4 | Assign ticket to a staff member |
-| 5 | Update ticket status — set open, in_progress or resolved |
-| 6 | Resolve ticket (in_progress → resolved) |
-| 7 | Reopen a resolved ticket (→ open) |
-| 8 | Show the open work queue, most urgent first |
-| 9 | Show the summary report |
-| 0 | Exit (changes are already saved) |
-
+Option	Action
+1	Create ticket — validates input and calculates priority
+2	List all tickets
+3	View one ticket by ID
+4	Assign ticket to a staff member
+5	Update ticket status — set open, in_progress, or resolved
+6	Resolve ticket (in_progress → resolved)
+7	Reopen a resolved ticket (resolved → open)
+8	Show the open work queue, most urgent first
+9	Show the summary report
+0	Exit (changes are already saved)
 ## Running the tests
 
 ```bash
@@ -120,14 +117,7 @@ Each engineer works on their own branch and opens a pull request:
 | Engineer | Example branch |
 | --- | --- |
 | A | `feat/1-ticket-management` |
-| B | `feat/2-ticket-workflow` |
-| C | `feat/3-storage-reports-cli` |
-
-Use the real GitHub Issue number in the branch name. Reviews run in a circle —
-**A reviews B • B reviews C • C reviews A** — with at least two meaningful
-observations per review and no self-approval. Shared files are `README.md`,
-`.gitignore`, `docs/design-decisions.md`, `docs/ai-learning-log.md` and
-`campusflow/__init__.py`.
+| B | `feat/2-ticket-workflow``feat/3-storage-reports-cli`
 
 ## Known limitations and future improvements
 
@@ -137,8 +127,3 @@ observations per review and no self-approval. Shared files are `README.md`,
 - Reports are text only; no export to CSV or charts.
 - No authentication, undo, or edit/delete of existing tickets.
 
-## Reviewed pull requests
-
-- Engineer A's PR: _link_
-- Engineer B's PR: _link_
-- Engineer C's PR: _link_
