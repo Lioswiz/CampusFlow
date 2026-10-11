@@ -1,205 +1,144 @@
 # CampusFlow
 
+CampusFlow is a command-line helpdesk for Learn2Earn campus staff. Informal
+reports about Wi-Fi outages, faulty laptops, broken development environments
+and inaccessible platforms get lost; CampusFlow records each problem, scores
+its priority, assigns responsibility and tracks progress until it is resolved.
 
-Yes. We can divide the CampusFlow AI-Native Engineering Sprint among three developers so that everyone has clear responsibilities, writes Python code, contributes automated tests, and participates in GitHub collaboration.
+Built for the **AI-Native Engineering Sprint** as a Python standard-library
+project (no framework, database, SDK or API key required).
 
-Important: The original Learn2Earn guide specifies two fellows per team. The three-person arrangement below is my proposed adaptation, not an officially approved change. Confirm with your facilitator that three-person teams are permitted.
+## Problem statement
 
-1. Recommended division of responsibilities
-Developer A — Ticket Management
-Core ticket logic
-Responsible for ticket creation, validation, priority calculation and viewing tickets.
+Campus staff need one place to log support requests and decide what to work on
+first. The app must:
 
-Developer B — Workflow Management
-Ticket operations
-Responsible for assigning tickets, managing status transitions and ordering the work queue.
+- capture a ticket with a validated title, category, urgency and user count;
+- calculate priority from fixed business rules;
+- assign work and move tickets through a lifecycle;
+- show the pending work queue and summary reports;
+- survive a restart by saving to JSON.
 
-Developer C — Storage, Reports & CLI
-Application integration
-Responsible for JSON persistence, reporting, the command-line menu and integration tests.
+## Team and contributions
 
-2. Detailed responsibilities
-Developer A — Ticket Management
-SUGGESTED FILES: campusflow/tickets.py, tests/test_tickets.py
+> The guide specifies two fellows per team. This repository uses a three-person
+> adaptation (see the working agreement below); confirm three-person teams are
+> permitted with your facilitator.
 
-Tasks:
+| Engineer | Owns | Files | Contribution summary |
+| --- | --- | --- | --- |
+| A | Ticket management | `campusflow/tickets.py`, `tests/test_tickets.py` | Ticket creation with generated IDs, input validation, the priority engine, listing and lookup. |
+| B | Workflow management | `campusflow/workflow.py`, `tests/test_workflow.py` | Assignment, the open → in_progress → resolved lifecycle, reopening and the ordered work queue. |
+| C | Storage, reports and CLI | `campusflow/storage.py`, `campusflow/reports.py`, `main.py`, `tests/test_storage.py`, `tests/test_reports.py`, `tests/test_cli.py` | Atomic JSON persistence, summary reports and the interactive menu. |
 
-Implement ticket creation with automatically generated unique IDs.
+_Fill in the engineers' names before submission._
 
-Validate ticket titles, categories, urgency and affected-user counts.
+## Requirements
 
-Calculate priority using the four specified rules.
+- Python 3.8 or newer (`python3 --version`)
+- No third-party packages; everything uses the standard library.
 
-Implement listing all tickets and viewing one ticket by ID.
+## Setup
 
-Write automated tests for valid and invalid ticket creation and priority boundaries.
+```bash
+git clone <repository-url>
+cd CampusFlow
+python3 -m unittest discover -s tests -v   # confirm the suite passes
+```
 
-Expected deliverable: Functions that create and retrieve valid ticket records and calculate their priorities correctly.
+## Running the CLI
 
-Developer B — Workflow Management
-SUGGESTED FILES: campusflow/workflow.py, tests/test_workflow.py
+```bash
+python3 main.py
+```
 
-Tasks:
+The menu keeps running until you choose **Exit**:
 
-Assign tickets to staff members.
+| Option | Action |
+| --- | --- |
+| 1 | Create ticket — validates input and calculates priority |
+| 2 | List all tickets |
+| 3 | View one ticket by ID |
+| 4 | Assign ticket to a staff member |
+| 5 | Update ticket status — set open, in_progress or resolved |
+| 6 | Resolve ticket (in_progress → resolved) |
+| 7 | Reopen a resolved ticket (→ open) |
+| 8 | Show the open work queue, most urgent first |
+| 9 | Show the summary report |
+| 0 | Exit (changes are already saved) |
 
-Reject blank staff names and unknown ticket IDs.
+## Running the tests
 
-Implement the open → in_progress → resolved lifecycle.
+```bash
+python3 -m unittest discover -s tests -v
+```
 
-Prevent unassigned tickets from entering in_progress.
+Coverage by area:
 
-Implement explicit reopening of resolved tickets.
+- `test_tickets.py` — creation, validation, ID generation, priority boundaries.
+- `test_workflow.py` — assignment rules, legal/illegal transitions, queue order.
+- `test_storage.py` — save/reload round trips, missing and malformed files, IDs after reload.
+- `test_reports.py` — totals and breakdowns, including the empty case.
+- `test_cli.py` — integration: driving the menu with scripted input.
 
-Sort the open-ticket queue by priority, then numeric ticket ID.
+## Priority rules
 
-Write tests for assignment, status changes and queue ordering.
+Applied in order; the first match wins:
 
-Expected deliverable: Functions that manage ticket assignments and status changes while enforcing all workflow rules.
+1. high urgency **and** affected users ≥ 10 → `critical`
+2. high urgency **or** affected users ≥ 10 → `high`
+3. medium urgency **or** affected users ≥ 3 → `medium`
+4. everything else → `low`
 
-Developer C — Storage, Reports and CLI
-SUGGESTED FILES: campusflow/storage.py, campusflow/reports.py, main.py, tests/test_storage.py, tests/test_reports.py
+Worked examples: high + 12 users → critical; high + 2 users → high;
+low + 4 users → medium; low + 1 user → low.
 
-Tasks:
+## Status rules
 
-Save ticket records to JSON.
+- A ticket starts `open`.
+- `start_work` requires an assignment and moves `open → in_progress`.
+- `resolve_ticket` moves `in_progress → resolved`.
+- `reopen_ticket` moves `resolved → open`, keeping the assignee.
+- A resolved ticket cannot be changed until it is reopened.
 
-Reload existing tickets when the application starts.
+## Where tickets are saved
 
-Handle missing files and malformed JSON correctly.
+Tickets are written to `data/tickets.json` automatically after every change
+(create, assign, status change), then reloaded on startup. Exiting writes
+nothing because the file is already up to date. The folder and file are created
+automatically.
 
-Preserve unique ticket IDs after reloading.
+- **Fresh start:** delete `data/tickets.json` (or the whole `data/` folder) and
+  run the app again.
+- **Corrupt file:** `load_tickets` raises a clear error for malformed JSON; the
+  CLI reports it and continues with an empty list instead of erasing data.
 
-Generate reports showing totals and breakdowns by status and priority.
+## Working agreement (three-person adaptation)
 
-Create the interactive CLI menu connecting Developers A's and B's functions.
+Each engineer works on their own branch and opens a pull request:
 
-Write automated tests for persistence, reporting and integration.
+| Engineer | Example branch |
+| --- | --- |
+| A | `feat/1-ticket-management` |
+| B | `feat/2-ticket-workflow` |
+| C | `feat/3-storage-reports-cli` |
 
-Expected deliverable: A functioning command-line application that connects all modules, saves data and displays reports.
+Use the real GitHub Issue number in the branch name. Reviews run in a circle —
+**A reviews B • B reviews C • C reviews A** — with at least two meaningful
+observations per review and no self-approval. Shared files are `README.md`,
+`.gitignore`, `docs/design-decisions.md`, `docs/ai-learning-log.md` and
+`campusflow/__init__.py`.
 
-3. Proposed project structure
-Each developer has clear file ownership to reduce merge conflicts.
+## Known limitations and future improvements
 
-CAMPUSFLOW REPOSITORY
+- Data lives in a single JSON file; there is no database and no concurrency control.
+- Staff are free-text names; there is no staff directory to validate against.
+- The queue shows `open` tickets only; `in_progress` work is not listed there.
+- Reports are text only; no export to CSV or charts.
+- No authentication, undo, or edit/delete of existing tickets.
 
-main.py
+## Reviewed pull requests
 
-CLI menu and application entry point
-Dev C
-campusflow/tickets.py
-
-Creation, validation, priority, viewing
-Dev A
-campusflow/workflow.py
-
-Assignment, lifecycle, queue
-Dev B
-campusflow/storage.py
-
-JSON save and reload
-Dev C
-campusflow/reports.py
-
-Ticket statistics
-Dev C
-tests/test_tickets.py
-
-Ticket and priority tests
-Dev A
-tests/test_workflow.py
-
-Workflow and queue tests
-Dev B
-tests/test_storage.py
-
-Persistence tests
-Dev C
-tests/test_reports.py
-
-Report tests
-Dev C
-Shared files: README.md, .gitignore, docs/design-decisions.md, docs/ai-learning-log.md, and campusflow/__init__.py.
-
-4. GitHub collaboration plan
-Each developer should have their own branch and pull request.
-
-Developer
-
-Example branch
-
-A
-
-feat/1-ticket-management
-
-B
-
-feat/2-ticket-workflow
-
-C
-
-feat/3-storage-reports-cli
-
-Use actual GitHub Issue numbers in the branch names.
-
-For a three-person team, I recommend a circular review arrangement:
-
-
-A reviews B • B reviews C • C reviews A
-
-Every developer must inspect the code, run relevant tests, provide at least two meaningful review observations, and approve only when the code meets requirements. This adapts the guide's two-person review rule to three developers.
-
-5. Six-hour team schedule
-Time
-
-Activity
-
-00:00–00:20
-
-Create repository, add all three collaborators
-
-00:20–00:50
-
-Agree on interfaces and assign GitHub Issues
-
-00:50–01:30
-
-Each developer completes two AI learning experiments
-
-01:30–03:55
-
-Develop assigned features and tests in parallel
-
-03:55–05:00
-
-Open and review all three PRs
-
-05:00–05:40
-
-Merge approved work, run tests and finalize documentation
-
-05:40–06:00
-
-Demonstrate the application; all three developers explain their work
-
-Integration warning: Developer C should agree on the function names, parameters, return values and error handling with Developers A and B before coding the CLI. Otherwise, the modules may not work together even if they pass individual tests.
-
-6. Shared requirements for all three developers
-Regardless of the division, everyone should:
-
-Write actual Python application code and meaningful automated tests.
-
-Record at least three verified AI learning interactions, including one critically evaluated AI suggestion.
-
-Make meaningful commits on their own branch.
-
-Author a pull request and review another developer's pull request.
-
-Understand and explain their code during the demonstration.
-
-The team must have at least eight meaningful passing automated tests overall, though I recommend at least three tests per developer, plus additional integration coverage.
-
-My recommendation: Use this division because it gives each developer a distinct part of the application while keeping the responsibilities closely connected.
-
-One final question: Are you Developer A, B or C? I can then walk you through your exact implementation responsibilities, from the functions you need to write to the tests you must demonstrate, without doing the learning work for you.
-
+- Engineer A's PR: _link_
+- Engineer B's PR: _link_
+- Engineer C's PR: _link_

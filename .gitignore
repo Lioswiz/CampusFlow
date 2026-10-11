@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Secrets and local configuration
+.env
+.env.*
+
+# Runtime data (tickets are recreated on a fresh start)
+data/tickets.json
+data/*.tmp
+tickets.json
+
+# Tooling and editors
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+.idea/
+.vscode/
+.DS_Store
