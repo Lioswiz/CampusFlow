@@ -40,7 +40,7 @@ class TestTickets(unittest.TestCase):
         self.assertEqual(ticket, {
             "id": "T001", "title": "Wi-Fi down", "category": "Network",
             "urgency": "high", "affected_users": 12, "priority": "critical",
-            "status": "open", "assigned_to": None,
+            "status": "open", "assigned_to": None, "notes": [],
         })
         self.assertIs(self.tickets[0], ticket)
 

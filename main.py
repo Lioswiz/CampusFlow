@@ -5,8 +5,11 @@ JSON store. run() takes injectable input/output functions so integration
 tests can drive it with scripted answers instead of real terminal input.
 """
 
-from campusflow import reports, storage
+from campusflow import reports, storage, search
 from campusflow.tickets import create_ticket, get_ticket, list_tickets
+from campusflow.validation import (
+    CATEGORIES, PRIORITIES, STATUSES, URGENCY_LEVELS,
+)
 from campusflow.workflow import (
     assign_ticket, open_queue, reopen_ticket, resolve_ticket, start_work,
 )
@@ -22,6 +25,7 @@ CampusFlow
   7) Reopen ticket
   8) Show work queue
   9) Show report
+ 10) Search tickets
   0) Exit
 """
 
@@ -33,19 +37,78 @@ def _row(ticket):
             f"{ticket['title']} (assigned: {assignee})")
 
 
+def _report_error(print_fn, message):
+    """Show a failure with the one error prefix the CLI uses everywhere.
+
+    The prefix belongs here rather than on the ValueError text itself, so a
+    message is never labelled twice and the logic modules stay free of
+    presentation concerns.
+    """
+    print_fn(f"Error: {message}")
+
+
+# Shown when the saved file exists but could not be read. Saving over it would
+# silently discard every ticket in it, so the app refuses until the file is
+# fixed or removed.
+_UNREADABLE = ("Nothing will be saved over {path} because it could not be "
+               "read. Repair or delete the file, then start the app again.")
+
+
+# Fixed option sets are shown as numbered lists so staff can pick rather than
+# spell the word. The choices come straight from the shared validation
+# vocabulary, so the menu can never offer something the rules reject. A typed
+# value is still accepted, because the logic layer normalizes it.
+CATEGORY_OPTIONS = tuple(CATEGORIES)
+URGENCY_OPTIONS = tuple(URGENCY_LEVELS)
+STATUS_OPTIONS = tuple(STATUSES)
+PRIORITY_OPTIONS = tuple(PRIORITIES)
+
+
+def _option_menu(options):
+    """Render numbered options, one per line."""
+    return "\n".join(f"  {number}) {name}"
+                     for number, name in enumerate(options, start=1))
+
+
+def _choose_option(label, options, input_fn, print_fn, blank=False, retry=False):
+    """Return a choice from a numbered menu, or pass a typed value through.
+
+    With blank=True an empty answer means "no choice" and returns None, which
+    the search view reads as "do not filter by this field". With retry=True an
+    unusable answer is reported and the menu is shown again, instead of being
+    handed back for the caller to reject.
+    """
+    hint = (f"1-{len(options)}, name, or blank" if blank
+            else f"1-{len(options)} or name")
+    while True:
+        print_fn(f"{label}:")
+        print_fn(_option_menu(options))
+        answer = input_fn(f"{label} ({hint}): ").strip()
+        if blank and not answer:
+            return None
+        if answer.isdigit() and 1 <= int(answer) <= len(options):
+            return options[int(answer) - 1]
+        if not retry:
+            return answer
+        for option in options:
+            if answer.casefold() == option.casefold():
+                return option
+        _report_error(print_fn, f"{label} must be {hint}.")
+
+
 def _create_flow(tickets, input_fn, print_fn):
     title = input_fn("Title: ")
-    category = input_fn("Category (Network/Hardware/Software/Other): ")
-    urgency = input_fn("Urgency (low/medium/high): ")
+    category = _choose_option("Category", CATEGORY_OPTIONS, input_fn, print_fn)
+    urgency = _choose_option("Urgency", URGENCY_OPTIONS, input_fn, print_fn)
     try:
         affected_users = int(input_fn("Affected users: "))
     except (TypeError, ValueError):
-        print_fn("Affected users must be a whole number.")
+        _report_error(print_fn, "Affected users must be a whole number.")
         return
     try:
         ticket = create_ticket(tickets, title, category, urgency, affected_users)
     except ValueError as error:
-        print_fn(f"Could not create ticket: {error}")
+        _report_error(print_fn, f"Could not create ticket: {error}")
         return
     print_fn(f"Ticket {ticket['id']} created with {ticket['priority']} priority.")
     return True
@@ -63,7 +126,7 @@ def _view_flow(tickets, input_fn, print_fn):
     try:
         ticket = get_ticket(tickets, input_fn("Ticket ID: "))
     except ValueError as error:
-        print_fn(str(error))
+        _report_error(print_fn, str(error))
         return
     for key in ("id", "title", "category", "urgency", "affected_users",
                 "priority", "status", "assigned_to"):
@@ -76,7 +139,7 @@ def _assign_flow(tickets, input_fn, print_fn):
     try:
         ticket = assign_ticket(tickets, ticket_id, staff)
     except ValueError as error:
-        print_fn(f"Could not assign: {error}")
+        _report_error(print_fn, f"Could not assign: {error}")
         return
     print_fn(f"{ticket['id']} assigned to {ticket['assigned_to']}.")
     return True
@@ -87,7 +150,7 @@ def _transition_flow(action, label):
         try:
             ticket = action(tickets, input_fn("Ticket ID: "))
         except ValueError as error:
-            print_fn(f"Could not {label}: {error}")
+            _report_error(print_fn, f"Could not {label}: {error}")
             return
         print_fn(f"{ticket['id']} is now {ticket['status']}.")
         return True
@@ -108,12 +171,12 @@ def _status_flow(tickets, input_fn, print_fn):
     new_status = input_fn("New status: ").strip().lower().replace(" ", "_")
     action = _STATUS_ACTIONS.get(new_status)
     if action is None:
-        print_fn("Status must be open, in_progress or resolved.")
+        _report_error(print_fn, "Status must be open, in_progress or resolved.")
         return
     try:
         ticket = action(tickets, ticket_id)
     except ValueError as error:
-        print_fn(f"Could not update status: {error}")
+        _report_error(print_fn, f"Could not update status: {error}")
         return
     print_fn(f"{ticket['id']} is now {ticket['status']}.")
     return True
@@ -133,6 +196,43 @@ def _report_flow(tickets, input_fn, print_fn):
     print_fn(reports.format_summary(tickets))
 
 
+def _read_search_filters(input_fn, print_fn):
+    """Collect the search filters, re-prompting on an unusable answer.
+
+    Any filter left blank means "do not filter by this field". Raising here
+    (rather than looping forever) lets the caller abandon the search when the
+    input ends.
+    """
+    title = input_fn("Title contains (blank for any): ")
+    category = _choose_option("Category", CATEGORY_OPTIONS, input_fn, print_fn,
+                              blank=True, retry=True)
+    status = _choose_option("Status", STATUS_OPTIONS, input_fn, print_fn,
+                            blank=True, retry=True)
+    priority = _choose_option("Priority", PRIORITY_OPTIONS, input_fn, print_fn,
+                              blank=True, retry=True)
+    return {"title": title, "category": category,
+            "status": status, "priority": priority}
+
+
+def _search_flow(tickets, input_fn, print_fn):
+    """Show matching tickets. Read-only: no ticket is ever changed."""
+    try:
+        filters = _read_search_filters(input_fn, print_fn)
+        results = search.search_tickets(tickets, **filters)
+    except ValueError as error:
+        _report_error(print_fn, f"Could not search: {error}")
+        return
+    except (EOFError, StopIteration):
+        _report_error(print_fn, "Input ended; search cancelled.")
+        return
+    if not results:
+        print_fn("No tickets matched the search.")
+        return
+    print_fn(f"{len(results)} ticket(s) matched:")
+    for ticket in results:
+        print_fn(_row(ticket))
+
+
 ACTIONS = {
     "1": _create_flow,
     "2": _list_flow,
@@ -143,6 +243,7 @@ ACTIONS = {
     "7": _transition_flow(reopen_ticket, "reopen the ticket"),
     "8": _queue_flow,
     "9": _report_flow,
+    "10": _search_flow,
 }
 
 
@@ -151,18 +252,32 @@ def _save(tickets, path, print_fn):
         storage.save_tickets(tickets, path)
         print_fn(f"Saved {len(tickets)} ticket(s) to {path}.")
     except OSError as error:
-        print_fn(f"Could not save tickets: {error}")
+        _report_error(print_fn, f"Could not save tickets: {error}")
 
 
 def run(input_fn=input, print_fn=print, path=storage.DEFAULT_PATH, tickets=None):
     """Run the menu loop, returning the final ticket list."""
+    # A file that exists but could not be read is protected. The menu still
+    # runs, from an empty list, but a change must not be written over a file we
+    # never managed to read: one bad edit would otherwise destroy every saved
+    # report, and the app would look like it had simply started fresh.
+    unreadable = None
     if tickets is None:
         try:
             tickets = storage.load_tickets(path)
         except ValueError as error:
-            print_fn(f"Could not load saved tickets: {error}")
+            _report_error(print_fn, f"Could not load saved tickets: {error}")
             tickets = []
+            unreadable = _UNREADABLE.format(path=path)
+        except OSError as error:
+            # Not a data problem: the file is missing, locked, a directory or
+            # otherwise unreachable. Reported, not raised, so the menu survives.
+            _report_error(print_fn, f"Could not read saved tickets: {error}")
+            tickets = []
+            unreadable = _UNREADABLE.format(path=path)
     print_fn(f"Loaded {len(tickets)} ticket(s) from {path}.")
+    if unreadable:
+        _report_error(print_fn, unreadable)
     while True:
         print_fn(MENU)
         try:
@@ -175,10 +290,13 @@ def run(input_fn=input, print_fn=print, path=storage.DEFAULT_PATH, tickets=None)
             return tickets
         handler = ACTIONS.get(choice)
         if handler is None:
-            print_fn("Unknown option; enter a number from the menu.")
+            _report_error(print_fn, "Unknown option; enter a number from the menu.")
         elif handler(tickets, input_fn, print_fn):
             # Mutating actions return True, so the change is on disk at once.
-            _save(tickets, path, print_fn)
+            if unreadable:
+                _report_error(print_fn, unreadable)
+            else:
+                _save(tickets, path, print_fn)
 
 
 if __name__ == "__main__":
