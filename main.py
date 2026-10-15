@@ -1,11 +1,12 @@
-"""CampusFlow command-line menu (Developer C).
+"""CampusFlow command-line menu (Engineer B).
 
-Connects the ticket (Developer A) and workflow (Developer B) functions to a
-JSON store. run() takes injectable input/output functions so integration
-tests can drive it with scripted answers instead of real terminal input.
+Connects the ticket (Engineer A) and workflow functions to a JSON store.
+run() takes injectable input/output functions so integration tests can drive
+it with scripted answers instead of real terminal input.
 """
 
-from campusflow import reports, storage, search
+from campusflow import reports, search, storage, understanding_check
+from campusflow.notes import add_note, can_accept_notes, list_notes
 from campusflow.tickets import create_ticket, get_ticket, list_tickets
 from campusflow.validation import (
     CATEGORIES, PRIORITIES, STATUSES, URGENCY_LEVELS,
@@ -26,6 +27,9 @@ CampusFlow
   8) Show work queue
   9) Show report
  10) Search tickets
+ 11) Add follow-up note
+ 12) View follow-up notes
+ 13) Understanding check (engineers)
   0) Exit
 """
 
@@ -233,6 +237,72 @@ def _search_flow(tickets, input_fn, print_fn):
         print_fn(_row(ticket))
 
 
+def _note_add_flow(tickets, input_fn, print_fn):
+    """Record a follow-up note. Mutating: returns True so the change is saved.
+
+    The author and message are handed straight to Engineer A's add_note rather
+    than checked here, so the note rules have one home and cannot drift from
+    the ones the storage loader enforces.
+    """
+    ticket_id = input_fn("Ticket ID: ")
+    author = input_fn("Author: ")
+    message = input_fn("Note: ")
+    try:
+        note = add_note(tickets, ticket_id, author, message)
+    except ValueError as error:
+        _report_error(print_fn, f"Could not add note: {error}")
+        return
+    # add_note has already resolved the ID, so this lookup cannot fail.
+    ticket = get_ticket(tickets, ticket_id)
+    print_fn(f"{note['note_id']} added to {ticket['id']} "
+             f"({len(list_notes(ticket))} note(s) on file).")
+    return True
+
+
+def _note_view_flow(tickets, input_fn, print_fn):
+    """Show one ticket's follow-up notes in note-ID order. Read-only."""
+    try:
+        ticket = get_ticket(tickets, input_fn("Ticket ID: "))
+    except ValueError as error:
+        _report_error(print_fn, str(error))
+        return
+    found = list_notes(ticket)
+    if not found:
+        print_fn(f"{ticket['id']} has no follow-up notes yet.")
+    else:
+        print_fn(f"{len(found)} note(s) on {ticket['id']}:")
+        for note in found:
+            print_fn(f"  {note['note_id']} {note['author']}: {note['message']}")
+    # Says why the Add note option will refuse, rather than leaving the
+    # reader to discover it by trying.
+    if not can_accept_notes(ticket):
+        print_fn(f"{ticket['id']} is {ticket['status']}; "
+                 "reopen it before adding a note.")
+
+
+def _check_flow(tickets, input_fn, print_fn):
+    """Run the Engineering Understanding Check. Read-only."""
+    answers = []
+    explanations = {}
+    try:
+        for question in understanding_check.QUESTIONS:
+            print_fn(f"{question['id']}) {question['question']}")
+            for number, option in enumerate(question["options"], start=1):
+                print_fn(f"  {number}) {option}")
+            answers.append(input_fn("Answer: "))
+            if question["explain"]:
+                explanations[question["id"]] = input_fn(
+                    "Explain your answer in your own words: ")
+        result = understanding_check.score_check(answers, explanations)
+    except ValueError as error:
+        _report_error(print_fn, f"Could not score the check: {error}")
+        return
+    except (EOFError, StopIteration):
+        _report_error(print_fn, "Input ended; check abandoned.")
+        return
+    print_fn(understanding_check.format_result(result))
+
+
 ACTIONS = {
     "1": _create_flow,
     "2": _list_flow,
@@ -244,6 +314,9 @@ ACTIONS = {
     "8": _queue_flow,
     "9": _report_flow,
     "10": _search_flow,
+    "11": _note_add_flow,
+    "12": _note_view_flow,
+    "13": _check_flow,
 }
 
 

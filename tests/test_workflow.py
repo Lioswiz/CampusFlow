@@ -7,7 +7,7 @@ from campusflow.workflow import (
 
 
 class WorkflowTestCase(unittest.TestCase):
-    """Shared helper that builds real tickets through the Developer A API."""
+    """Shared helper that builds real tickets through the Engineer A API."""
 
     def setUp(self):
         self.tickets = []
