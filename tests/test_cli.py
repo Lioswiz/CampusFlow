@@ -5,6 +5,7 @@ import os
 import tempfile
 import unittest
 
+from campusflow import understanding_check
 from campusflow.storage import load_tickets, save_tickets
 from campusflow.tickets import create_ticket
 import main
@@ -319,6 +320,173 @@ class TestUnreadableStore(unittest.TestCase):
              "1", "Second", "1", "1", "1", "0"])
         # One warning at startup, plus one for each abandoned save.
         self.assertEqual(output.count("Nothing will be saved over"), 3)
+
+
+class TestNoteMenus(unittest.TestCase):
+    """Menu options 11 and 12, driving Engineer A's note API."""
+
+    def setUp(self):
+        self._dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._dir.cleanup)
+        self.path = os.path.join(self._dir.name, "tickets.json")
+
+    def run_cli(self, answers):
+        output = []
+        tickets = main.run(input_fn=scripted(answers),
+                           print_fn=output.append, path=self.path)
+        return tickets, "\n".join(output)
+
+    def create(self, title="Wi-Fi down"):
+        """Answers that create one ticket, ready for a note-menu answer."""
+        return ["1", title, "1", "3", "12"]
+
+    def test_add_note_through_the_menu(self):
+        tickets, output = self.run_cli(
+            self.create() + ["11", "T001", "Ada", "Switch is unresponsive",
+                             "0"])
+        self.assertIn("N001 added to T001", output)
+        self.assertEqual(tickets[0]["notes"], [
+            {"note_id": "N001", "author": "Ada",
+             "message": "Switch is unresponsive"}])
+
+    def test_an_added_note_is_saved_immediately(self):
+        tickets, _ = self.run_cli(
+            self.create() + ["11", "T001", "Ada", "Switch is unresponsive",
+                             "0"])
+        self.assertEqual(load_tickets(self.path), tickets)
+        self.assertEqual(load_tickets(self.path)[0]["notes"][0]["note_id"],
+                         "N001")
+
+    def test_a_second_note_continues_the_sequence(self):
+        tickets, output = self.run_cli(
+            self.create() + ["11", "T001", "Ada", "Switch is unresponsive",
+                             "11", "T001", "Sam", "Cable replaced, tested OK",
+                             "0"])
+        self.assertIn("N002 added to T001", output)
+        self.assertEqual([note["note_id"] for note in tickets[0]["notes"]],
+                         ["N001", "N002"])
+
+    def test_a_short_note_is_refused(self):
+        tickets, output = self.run_cli(
+            self.create() + ["11", "T001", "Ada", "bad", "0"])
+        self.assertEqual(tickets[0]["notes"], [])
+        self.assertIn("Could not add note", output)
+
+    def test_an_unknown_ticket_is_reported(self):
+        _, output = self.run_cli(
+            self.create() + ["11", "T999", "Ada", "Switch is unresponsive",
+                             "0"])
+        self.assertTrue(any(line.startswith("Error: Could not add note")
+                            for line in output.splitlines()), output)
+
+    def test_a_note_on_a_resolved_ticket_is_refused(self):
+        tickets, output = self.run_cli(
+            self.create() + ["4", "T001", "Ada",
+                             "5", "T001", "in_progress",
+                             "6", "T001",
+                             "11", "T001", "Ada", "Happened again", "0"])
+        self.assertEqual(tickets[0]["status"], "resolved")
+        self.assertEqual(tickets[0]["notes"], [])
+        self.assertIn("Could not add note", output)
+        self.assertIn("reopen", output)
+
+    def test_view_notes_lists_them(self):
+        _, output = self.run_cli(
+            self.create() + ["11", "T001", "Ada", "Switch is unresponsive",
+                             "12", "T001", "0"])
+        self.assertIn("1 note(s) on T001:", output)
+        self.assertIn("N001 Ada: Switch is unresponsive", output)
+
+    def test_view_notes_reports_an_empty_ticket(self):
+        _, output = self.run_cli(self.create() + ["12", "T001", "0"])
+        self.assertIn("T001 has no follow-up notes yet.", output)
+
+    def test_view_notes_on_an_unknown_ticket_is_reported(self):
+        _, output = self.run_cli(self.create() + ["12", "T999", "0"])
+        self.assertTrue(any(line.startswith("Error:")
+                            for line in output.splitlines()), output)
+
+    def test_view_notes_warns_that_a_resolved_ticket_takes_no_notes(self):
+        _, output = self.run_cli(
+            self.create() + ["4", "T001", "Ada",
+                             "5", "T001", "in_progress",
+                             "6", "T001",
+                             "12", "T001", "0"])
+        self.assertIn("reopen it before adding a note", output)
+
+    def test_notes_are_kept_through_resolve_and_reopen(self):
+        tickets, output = self.run_cli(
+            self.create() + ["11", "T001", "Ada", "Switch is unresponsive",
+                             "4", "T001", "Ada",
+                             "5", "T001", "in_progress",
+                             "6", "T001",
+                             "7", "T001",
+                             "12", "T001", "0"])
+        self.assertEqual([note["note_id"] for note in tickets[0]["notes"]],
+                         ["N001"])
+        self.assertIn("N001 Ada: Switch is unresponsive", output)
+
+    def test_viewing_notes_saves_nothing(self):
+        _, output = self.run_cli(
+            self.create() + ["11", "T001", "Ada", "Switch is unresponsive",
+                             "12", "T001", "0"])
+        # Two mutating actions: the create and the note. The view is not one.
+        self.assertEqual(output.count("Saved "), 2)
+
+
+class TestUnderstandingCheckMenu(unittest.TestCase):
+    """Menu option 13: the check runs read-only and never saves."""
+
+    def setUp(self):
+        self._dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._dir.cleanup)
+        self.path = os.path.join(self._dir.name, "tickets.json")
+
+    def run_cli(self, answers):
+        output = []
+        tickets = main.run(input_fn=scripted(answers),
+                           print_fn=output.append, path=self.path)
+        return tickets, "\n".join(output)
+
+    @staticmethod
+    def replies(correct=True):
+        """Scripted answers in prompt order, including the two explanations."""
+        answers = []
+        for question in understanding_check.QUESTIONS:
+            if correct:
+                answers.append(str(question["answer"]))
+            else:
+                answers.append("1" if question["answer"] != 1 else "2")
+            if question["explain"]:
+                answers.append("Because the rules say so.")
+        return answers
+
+    def test_the_check_runs_and_scores_a_perfect_attempt(self):
+        _, output = self.run_cli(["13"] + self.replies() + ["0"])
+        self.assertIn("Score: 6/6 (100.0%)", output)
+
+    def test_the_check_marks_a_wrong_answer(self):
+        _, output = self.run_cli(["13"] + self.replies(correct=False) + ["0"])
+        self.assertIn("Score: 0/6 (0.0%)", output)
+        self.assertIn("Why:", output)
+
+    def test_the_check_shows_the_questions_and_their_options(self):
+        _, output = self.run_cli(["13"] + self.replies() + ["0"])
+        self.assertIn("Q1)", output)
+        self.assertIn("1) critical", output)
+
+    def test_the_check_records_the_takers_own_explanation(self):
+        _, output = self.run_cli(["13"] + self.replies() + ["0"])
+        self.assertIn("In your own words: Because the rules say so.", output)
+
+    def test_the_check_writes_nothing(self):
+        _, output = self.run_cli(["13"] + self.replies() + ["0"])
+        self.assertNotIn("Saved", output)
+
+    def test_the_check_is_abandoned_when_the_input_ends(self):
+        _, output = self.run_cli(["13", "1"])
+        self.assertIn("Input ended; check abandoned.", output)
+        self.assertNotIn("Score:", output)
 
 
 if __name__ == "__main__":

@@ -42,8 +42,8 @@ leaves the collection exactly as it was.
 
 | Files owned | |
 | --- | --- |
-| Code | `campusflow/validation.py`, `campusflow/notes.py`, `campusflow/storage.py`, `campusflow/tickets.py`, `campusflow/workflow.py` |
-| Tests | `tests/test_validation.py`, `tests/test_notes.py`, `tests/test_storage.py` |
+| Code | `campusflow/validation.py`, `campusflow/notes.py`, `campusflow/storage.py`, `campusflow/tickets.py`, `campusflow/workflow.py`, `campusflow/search.py`, `campusflow/reports.py`, `campusflow/understanding_check.py`, `main.py` |
+| Tests | `tests/test_validation.py`, `tests/test_notes.py`, `tests/test_storage.py`, `tests/test_search.py`, `tests/test_reports.py`, `tests/test_understanding.py`, `tests/test_cli.py` |
 
 | Function | Job |
 | --- | --- |
@@ -58,57 +58,23 @@ leaves the collection exactly as it was.
 The guarantee: invalid input raises `ValueError` and the ticket collection
 is unchanged. Validation always happens before any mutation.
 
+| Area | Job | Status | Implemented by |
+| --- | --- | --- | --- |
+| Search and filters | Case-insensitive title substring matching, plus combined category/status/priority filters | Done | Edache John Ekoja |
+| Re-prompting | An unusable search filter is reported and the menu shown again | Done | Edache John Ekoja |
+| Reports | Totals, status/priority/category counts, unresolved and resolved counts, resolution percentage | Done | Edache John Ekoja |
+| Note menus | Add and view follow-up notes by calling Edache's `add_note`, `list_notes` and `can_accept_notes` | Done | Edache John Ekoja |
+| Understanding Check | Six multiple-choice scenario questions, scored, with two answers explained | Done | Edache John Ekoja |
+
 ### Engineer B — Solomon Unegbe, search, reporting and CLI
 
 Owns discovery and interaction. Everything here reads the collection through
 Edache's APIs and never edits a ticket itself.
 
-| Files owned | |
-| --- | --- |
-| Code | `campusflow/search.py`, `campusflow/reports.py`, `campusflow/understanding_check.py`, `main.py` |
-| Tests | `tests/test_search.py`, `tests/test_reports.py`, `tests/test_understanding.py`, `tests/test_cli.py` |
-
 | Area | Job | Status | Implemented by |
 | --- | --- | --- | --- |
 | CLI option pickers | Category and urgency chosen from numbered lists, with a typed value still accepted | Done | Edache John Ekoja |
 | CLI error handling | Every failure reported with a single `Error:` prefix instead of a bare message | Done | Edache John Ekoja |
-| Search and filters | Case-insensitive title substring matching, plus combined category/status/priority filters | Done | Edache John Ekoja |
-| Re-prompting | An unusable search filter is reported and the menu shown again | Done | Edache John Ekoja |
-| Reports | Totals, status/priority/category counts, unresolved and resolved counts, resolution percentage | Planned | Solomon Unegbe |
-| Note menus | Add and view follow-up notes by calling Edache's `add_note`, `list_notes` and `can_accept_notes` | Planned | Solomon Unegbe |
-| Understanding Check | Six multiple-choice scenario questions, scored, with two answers explained | Planned | Solomon Unegbe |
-
-### Work reassigned to Edache
-
-These items sit inside Solomon's workstream, but Edache implemented them. They
-are recorded here so the history is not misleading and so nobody has to defend
-code they did not write.
-
-| Item | Normally Solomon's | Actually written by | Files |
-| --- | --- | --- | --- |
-| Numbered category and urgency pickers | B | Edache John Ekoja | `main.py`, `tests/test_cli.py` |
-| The `Error:` prefix on every failure message | B | Edache John Ekoja | `main.py`, `tests/test_cli.py` |
-| Read-only search view and combined filters | B | Edache John Ekoja | `campusflow/search.py`, `tests/test_search.py` |
-| Filter re-prompting | B | Edache John Ekoja | `main.py` |
-| Unreadable-store reporting and protection | B (with A) | Edache John Ekoja | `main.py`, `tests/test_cli.py`, `tests/test_storage.py` |
-
-Consequences worth stating plainly:
-
-- Solomon should read these modules and run their tests, so the review record
-  shows a second engineer has verified them, and so he can explain them if
-  asked. Right now he has not seen them.
-- For the challenge submission, either these changes move onto Solomon's branch
-  and PR so he authors them, or they are declared as Edache's contribution to
-  Solomon's workstream. Both are defensible; leaving it implicit is not.
-- `campusflow/search.py` and the new menu entry were added on top of the
-  existing `main.py`, which was otherwise Solomon's file.
-
-Still to come in this workstream: the extended reports, the note menus and the
-Understanding Check, so `campusflow/understanding_check.py` does not exist yet.
-The report view itself is unchanged from the original.
-
-The guarantee: search and reporting never modify the collection, and their
-logic is testable without a terminal.
 
 ### Shared responsibilities
 
@@ -130,22 +96,6 @@ Both engineers must each:
   observations, address the feedback, and obtain approval before merging;
 - take the Engineering Understanding Check independently and explain two of
   their answers.
-
-### The interface contract
-
-Agreed between Edache and Solomon before coding, so neither branch has to
-guess:
-
-- The collection is one plain Python `list` of ticket dictionaries, passed
-  as the first argument to every function. Functions mutate the matching record
-  in place and return it; nobody needs a separate store.
-- Errors are always `ValueError` with a readable message, with one exception:
-  a path that cannot be opened at all raises `OSError`. Only `main.py` catches
-  them and turns them into menu messages, so the logic modules stay free of
-  terminal code. No other signalling style is mixed in.
-- Solomon's modules call Edache's validated APIs for every mutation; search
-  and reporting read the collection without changing it.
-- The ticket schema is the field table below, including `notes`.
 
 ## Requirements
 
@@ -180,6 +130,9 @@ The menu keeps running until you choose Exit:
 | 8 | Show the open work queue, most urgent first |
 | 9 | Show the summary report |
 | 10 | Search tickets — title text plus category, status and priority filters |
+| 11 | Add a follow-up note to an open or in-progress ticket |
+| 12 | View a ticket's follow-up notes in note-ID order |
+| 13 | Take the Engineering Understanding Check (six scenario questions, scored) |
 | 0 | Exit (changes are already saved) |
 
 Every failure is reported with a single `Error:` prefix — for example
@@ -208,10 +161,15 @@ Coverage by area:
 - `test_search.py` — title substring matching (including casefold), each filter
   on its own, filters combined with AND, invalid filter values, and proof that
   a search leaves the collection untouched.
-- `test_reports.py` — totals and breakdowns, including the empty case.
+- `test_reports.py` — totals and breakdowns by status, priority and category,
+  the resolved/unresolved split, the resolution rate and its rounding, and the
+  empty case, including the guard against dividing by zero.
+- `test_understanding.py` — the six-question set, exactly two answers marked for
+  explanation, scoring by number and by letter, rejected and missing answers,
+  and the report's score, why-lines and recorded explanations.
 - `test_cli.py` — integration: driving the menu with scripted input, including
-  a corrupt and an unreachable store that must be reported and never
-  overwritten.
+  the note menus and the Understanding Check, and a corrupt and an unreachable
+  store that must be reported and never overwritten.
 
 ## Priority rules
 
@@ -298,6 +256,41 @@ can_accept_notes(ticket)                       # -> False once resolved
 its first argument, the same way `assign_ticket` and `start_work` do. It raises
 `ValueError` with a readable message and changes nothing when it refuses.
 
+Menu option 11 adds a note and option 12 shows a ticket's notes. The menus call
+that API rather than re-checking the rules themselves, so the note rules keep
+one home. Adding a note is a change, so it is saved at once; viewing notes is
+read-only and triggers no save. When a ticket is resolved, option 12 says so and
+explains that it must be reopened before another note can be added, instead of
+leaving the reader to find out by trying.
+
+## Understanding Check
+
+Menu option 13 runs the Engineering Understanding Check: six multiple-choice
+scenario questions drawn from this project's own rules — priority ordering, the
+`bool`/`int` trap, notes on a resolved ticket, assignment before work starts,
+substring search and the atomic save. The check is scored out of six, and a
+wrong answer is followed by an explanation of the right one.
+
+Two of the six answers are explained in the taker's own words as well. Those two
+questions ask for an explanation, and it is recorded in the result beside the
+module's own, which is what the sprint asks each engineer to produce.
+
+The logic is `campusflow/understanding_check.py`:
+
+```python
+QUESTIONS       # the six questions; each has id, question, options, answer, explanation
+EXPLAINED_IDS   # the two question IDs that ask for a written explanation
+score_check(answers, explanations=None)   # -> score, percentage and marked results
+format_result(result)                     # -> the readable report
+```
+
+An answer is a 1-based option number or a letter `a`-`d`, so a written attempt
+can be marked without renumbering. A missing or unusable answer raises
+`ValueError` rather than being counted as wrong, so a partial attempt is never
+mistaken for a bad score. The check is read-only: it never touches a ticket and
+never triggers a save. As with every logic module here, it does not print or
+read from the terminal — `main.py` drives it.
+
 ## Search
 
 Menu option 10 shows matching tickets without changing anything. Filters
@@ -334,9 +327,9 @@ silently matching nothing, so a typo cannot be mistaken for an empty result.
 ## Where tickets are saved
 
 Tickets are written to `data/tickets.json` automatically after every change
-(create, assign, status change), then reloaded on startup. Exiting writes
-nothing because the file is already up to date. The folder and file are created
-automatically.
+(create, assign, status change, note added), then reloaded on startup. Exiting
+writes nothing because the file is already up to date. The folder and file are
+created automatically.
 
 The file is a plain JSON list of ticket objects, each carrying every field
 above including `notes`. There is no wrapper envelope and no version field.
