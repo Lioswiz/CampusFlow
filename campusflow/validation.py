@@ -12,6 +12,11 @@ URGENCY_LEVELS = ("low", "medium", "high")
 STATUSES = ("open", "in_progress", "resolved")
 PRIORITIES = ("critical", "high", "medium", "low")
 
+# The staff a ticket can be assigned to. A closed roster rather than free text,
+# so a stray number or a mis-spelling can never be stored as an assignee. The
+# order is the order the CLI offers them, so menu number and name line up.
+STAFF_NAMES = ("Kingsley", "Isaac", "Godswill", "Gabriel", "Ayuba", "Emmanuel")
+
 # The legal lifecycle edges. Anything not listed here is rejected before a
 # mutation happens, so a status can only ever move along these lines.
 TRANSITIONS = {
@@ -61,7 +66,17 @@ def validate_affected_users(value):
 
 
 def validate_staff(value):
-    return require_text(value, "Staff name")
+    """Return a staff name from the roster, or raise ValueError.
+
+    The roster is closed, so a typed number is refused rather than saved as
+    somebody's name. Matching ignores case and surrounding space; the canonical
+    spelling is what gets stored.
+    """
+    name = require_text(value, "Staff name")
+    for staff in STAFF_NAMES:
+        if name.casefold() == staff.casefold():
+            return staff
+    raise ValueError(f"Staff must be one of: {', '.join(STAFF_NAMES)}.")
 
 
 def validate_note_author(value):

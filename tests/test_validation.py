@@ -8,7 +8,7 @@ being exercised through the functions that call them.
 import unittest
 
 from campusflow.validation import (
-    CATEGORIES, STATUSES, TRANSITIONS, can_transition, require_text,
+    CATEGORIES, STAFF_NAMES, STATUSES, TRANSITIONS, can_transition, require_text,
     validate_affected_users, validate_category, validate_note_id,
     validate_note_message, validate_staff, validate_ticket_id,
     validate_title, validate_urgency,
@@ -30,12 +30,33 @@ class TestTextRules(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validate_title(value)
 
-    def test_staff_labels_must_be_non_empty_strings(self):
-        self.assertEqual(validate_staff("  Ada  "), "Ada")
-        for value in ("", "   ", None, 7):
+
+class TestStaffRoster(unittest.TestCase):
+    """Assignees come from a closed roster, not from free text.
+
+    The reported bug was a phone number being accepted as somebody's name, so
+    the wording of the name is no longer enough: it has to be on the list.
+    """
+
+    def test_staff_names_normalize_to_canonical_spelling(self):
+        for raw, expected in [("Kingsley", "Kingsley"), (" isaac ", "Isaac"),
+                              ("GODSWILL", "Godswill"), (" gabriel ", "Gabriel"),
+                              ("Ayuba", "Ayuba"), ("emmanuel", "Emmanuel")]:
+            with self.subTest(raw=raw):
+                self.assertEqual(validate_staff(raw), expected)
+                self.assertIn(expected, STAFF_NAMES)
+
+    def test_names_outside_the_roster_are_rejected(self):
+        # "123" is the case that used to slip through as free text.
+        for value in ("", "   ", None, 7, "123", "Ada", "Kingsley Mensah"):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     validate_staff(value)
+
+    def test_the_roster_has_no_duplicate_names(self):
+        # A duplicate would leave one menu number unreachable and the other
+        # ambiguous, so it is a configuration error worth failing on.
+        self.assertEqual(len(set(STAFF_NAMES)), len(STAFF_NAMES))
 
 
 class TestCategoryAndUrgency(unittest.TestCase):
