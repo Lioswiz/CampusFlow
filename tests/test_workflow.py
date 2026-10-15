@@ -18,15 +18,15 @@ class WorkflowTestCase(unittest.TestCase):
 
 
 class TestAssignment(WorkflowTestCase):
-    def test_assign_returns_shared_record_and_strips_name(self):
+    def test_assign_returns_shared_record_and_normalizes_name(self):
         ticket = self.make()
-        result = assign_ticket(self.tickets, " t001 ", "  Ada  ")
+        result = assign_ticket(self.tickets, " t001 ", "  kingsley  ")
         self.assertIs(result, ticket)
-        self.assertEqual(ticket["assigned_to"], "Ada")
+        self.assertEqual(ticket["assigned_to"], "Kingsley")
 
-    def test_assign_rejects_blank_and_non_string_names(self):
+    def test_assign_rejects_names_outside_the_roster(self):
         ticket = self.make()
-        for name in ("", "   ", None, 7):
+        for name in ("", "   ", None, 7, "123", "Ada"):
             with self.subTest(name=name):
                 with self.assertRaises(ValueError):
                     assign_ticket(self.tickets, "T001", name)
@@ -35,26 +35,26 @@ class TestAssignment(WorkflowTestCase):
     def test_assign_rejects_unknown_ticket(self):
         self.make()
         with self.assertRaises(ValueError):
-            assign_ticket(self.tickets, "T999", "Ada")
+            assign_ticket(self.tickets, "T999", "Kingsley")
 
     def test_resolved_ticket_cannot_be_reassigned_before_reopen(self):
         ticket = self.make()
-        assign_ticket(self.tickets, "T001", "Bo")
+        assign_ticket(self.tickets, "T001", "Isaac")
         start_work(self.tickets, "T001")
         resolve_ticket(self.tickets, "T001")
         with self.assertRaises(ValueError):
-            assign_ticket(self.tickets, "T001", "Ada")
-        self.assertEqual(ticket["assigned_to"], "Bo")
+            assign_ticket(self.tickets, "T001", "Kingsley")
+        self.assertEqual(ticket["assigned_to"], "Isaac")
         reopen_ticket(self.tickets, "T001")
-        assign_ticket(self.tickets, "T001", "Ada")
-        self.assertEqual(ticket["assigned_to"], "Ada")
+        assign_ticket(self.tickets, "T001", "Kingsley")
+        self.assertEqual(ticket["assigned_to"], "Kingsley")
 
 
 class TestLifecycle(WorkflowTestCase):
     def test_full_lifecycle(self):
         ticket = self.make()
         self.assertEqual(ticket["status"], "open")
-        assign_ticket(self.tickets, "T001", "Bo")
+        assign_ticket(self.tickets, "T001", "Isaac")
         start_work(self.tickets, "T001")
         self.assertEqual(ticket["status"], "in_progress")
         resolve_ticket(self.tickets, "T001")
@@ -68,7 +68,7 @@ class TestLifecycle(WorkflowTestCase):
 
     def test_illegal_transitions_are_rejected(self):
         ticket = self.make()
-        assign_ticket(self.tickets, "T001", "Bo")
+        assign_ticket(self.tickets, "T001", "Isaac")
         with self.assertRaises(ValueError):      # open cannot resolve
             resolve_ticket(self.tickets, "T001")
         with self.assertRaises(ValueError):      # open cannot reopen
@@ -80,12 +80,12 @@ class TestLifecycle(WorkflowTestCase):
 
     def test_reopen_keeps_assignment_and_allows_restart(self):
         ticket = self.make()
-        assign_ticket(self.tickets, "T001", "Bo")
+        assign_ticket(self.tickets, "T001", "Isaac")
         start_work(self.tickets, "T001")
         resolve_ticket(self.tickets, "T001")
         reopen_ticket(self.tickets, "T001")
         self.assertEqual(ticket["status"], "open")
-        self.assertEqual(ticket["assigned_to"], "Bo")
+        self.assertEqual(ticket["assigned_to"], "Isaac")
         start_work(self.tickets, "T001")          # assigned, so restart works
         self.assertEqual(ticket["status"], "in_progress")
 
@@ -104,7 +104,7 @@ class TestQueue(WorkflowTestCase):
     def test_queue_only_contains_open_tickets(self):
         self.make()
         self.make(urgency="high", affected_users=12)
-        assign_ticket(self.tickets, "T001", "Bo")
+        assign_ticket(self.tickets, "T001", "Isaac")
         start_work(self.tickets, "T001")
         resolve_ticket(self.tickets, "T001")           # T001 now resolved
         self.assertEqual([t["id"] for t in open_queue(self.tickets)], ["T002"])

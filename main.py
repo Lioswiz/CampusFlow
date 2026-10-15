@@ -9,7 +9,7 @@ from campusflow import reports, search, storage, understanding_check
 from campusflow.notes import add_note, can_accept_notes, list_notes
 from campusflow.tickets import create_ticket, get_ticket, list_tickets
 from campusflow.validation import (
-    CATEGORIES, PRIORITIES, STATUSES, URGENCY_LEVELS,
+    CATEGORIES, PRIORITIES, STAFF_NAMES, STATUSES, URGENCY_LEVELS,
 )
 from campusflow.workflow import (
     assign_ticket, open_queue, reopen_ticket, resolve_ticket, start_work,
@@ -66,6 +66,7 @@ CATEGORY_OPTIONS = tuple(CATEGORIES)
 URGENCY_OPTIONS = tuple(URGENCY_LEVELS)
 STATUS_OPTIONS = tuple(STATUSES)
 PRIORITY_OPTIONS = tuple(PRIORITIES)
+STAFF_OPTIONS = tuple(STAFF_NAMES)
 
 
 def _option_menu(options):
@@ -138,8 +139,14 @@ def _view_flow(tickets, input_fn, print_fn):
 
 
 def _assign_flow(tickets, input_fn, print_fn):
+    """Assign a ticket to a staff member picked from the roster.
+
+    The names come from the shared vocabulary and a typed name is still
+    accepted, so the menu can never offer somebody the rules would refuse.
+    """
     ticket_id = input_fn("Ticket ID: ")
-    staff = input_fn("Assign to: ")
+    staff = _choose_option("Assign to", STAFF_OPTIONS, input_fn, print_fn,
+                           retry=True)
     try:
         ticket = assign_ticket(tickets, ticket_id, staff)
     except ValueError as error:
