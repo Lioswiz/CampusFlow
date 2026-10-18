@@ -155,6 +155,32 @@ def _option_number(value, question):
         f"{letters[-1]}.")
 
 
+def check_answer(question, answer):
+    """Mark one answer and return its result entry.
+
+    Exposed so the menu can show the verdict for a question as soon as the
+    answer is given, without waiting for the whole attempt to be scored.
+    """
+    given = _option_number(answer, question)
+    return {
+        "id": question["id"],
+        "given": given,
+        "answer": question["answer"],
+        "correct": given == question["answer"],
+        "explanation": question["explanation"],
+    }
+
+
+def format_answer(entry):
+    """Render one marked answer as the feedback shown after it is submitted."""
+    verdict = "correct" if entry["correct"] else "incorrect"
+    lines = [f"{entry['id']}: {verdict} (answered {entry['given']}, "
+             f"correct is {entry['answer']})"]
+    if not entry["correct"]:
+        lines.append(f"  Why: {entry['explanation']}")
+    return "\n".join(lines)
+
+
 def score_check(answers, explanations=None):
     """Score one answer per question and return the marked result.
 
@@ -174,14 +200,7 @@ def score_check(answers, explanations=None):
 
     results = []
     for question, answer in zip(QUESTIONS, answers):
-        given = _option_number(answer, question)
-        results.append({
-            "id": question["id"],
-            "given": given,
-            "answer": question["answer"],
-            "correct": given == question["answer"],
-            "explanation": question["explanation"],
-        })
+        results.append(check_answer(question, answer))
 
     score = sum(1 for entry in results if entry["correct"])
     return {

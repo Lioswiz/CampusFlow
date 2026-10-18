@@ -479,6 +479,22 @@ class TestUnderstandingCheckMenu(unittest.TestCase):
         _, output = self.run_cli(["13"] + self.replies() + ["0"])
         self.assertIn("In your own words: Because the rules say so.", output)
 
+    def test_each_answer_is_marked_before_the_next_question(self):
+        _, output = self.run_cli(["13"] + self.replies(correct=False) + ["0"])
+        self.assertLess(output.index("Q1: incorrect"),
+                        output.index("Q2)"))
+        self.assertIn("Why:", output)
+
+    def test_an_invalid_answer_is_reported_and_the_question_asked_again(self):
+        _, output = self.run_cli(["13", "9"] + self.replies() + ["0"])
+        self.assertIn("Error: Q1 must be answered 1-4", output)
+        self.assertIn("Score: 6/6 (100.0%)", output)
+
+    def test_a_blank_answer_is_reported_and_the_question_asked_again(self):
+        _, output = self.run_cli(["13", "   "] + self.replies() + ["0"])
+        self.assertIn("Error: Q1 needs an answer.", output)
+        self.assertIn("Score: 6/6 (100.0%)", output)
+
     def test_the_check_writes_nothing(self):
         _, output = self.run_cli(["13"] + self.replies() + ["0"])
         self.assertNotIn("Saved", output)
