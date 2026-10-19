@@ -473,7 +473,16 @@ class TestUnderstandingCheckMenu(unittest.TestCase):
     def test_the_check_shows_the_questions_and_their_options(self):
         _, output = self.run_cli(["13"] + self.replies() + ["0"])
         self.assertIn("Q1)", output)
-        self.assertIn("1) critical", output)
+        self.assertIn("A) critical", output)
+
+    def test_the_check_accepts_a_letter_as_well_as_a_number(self):
+        replies = []
+        for question in understanding_check.QUESTIONS:
+            replies.append(chr(ord("a") + question["answer"] - 1))
+            if question["explain"]:
+                replies.append("Because the rules say so.")
+        _, output = self.run_cli(["13"] + replies + ["0"])
+        self.assertIn("Score: 6/6 (100.0%)", output)
 
     def test_the_check_records_the_takers_own_explanation(self):
         _, output = self.run_cli(["13"] + self.replies() + ["0"])
@@ -487,7 +496,7 @@ class TestUnderstandingCheckMenu(unittest.TestCase):
 
     def test_an_invalid_answer_is_reported_and_the_question_asked_again(self):
         _, output = self.run_cli(["13", "9"] + self.replies() + ["0"])
-        self.assertIn("Error: Q1 must be answered 1-4", output)
+        self.assertIn("Error: Q1 must be answered A-D or 1-4", output)
         self.assertIn("Score: 6/6 (100.0%)", output)
 
     def test_a_blank_answer_is_reported_and_the_question_asked_again(self):

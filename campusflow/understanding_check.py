@@ -14,8 +14,8 @@ the tests can score a whole attempt without any scripted input.
 # without ceremony.
 #   id          short label used in the report
 #   question    the scenario, in the words staff would use
-#   options     four choices, shown numbered 1-4
-#   answer      the correct choice as a 1-based number, matching what is typed
+#   options     four choices, shown lettered A-D
+#   answer      the correct choice as a 1-based position, matching what is typed
 #   explanation why that choice is right, shown when the answer is wrong
 #   explain     True for the two questions the taker must explain in words
 QUESTIONS = (
@@ -129,12 +129,21 @@ QUESTIONS = (
 EXPLAINED_IDS = tuple(question["id"] for question in QUESTIONS
                       if question["explain"])
 
+# Options are shown as letters. Answers may still be typed as numbers, because
+# the menu has always accepted those and a written attempt may number them.
+OPTION_LETTERS = "ABCDEFGH"
+
+
+def option_label(number):
+    """Return the letter shown for a 1-based option number."""
+    return OPTION_LETTERS[number - 1]
+
 
 def _option_number(value, question):
     """Return the 1-based option number for an answer, or raise ValueError.
 
-    A number is accepted as typed from the menu; a letter is accepted so a
-    written attempt can be marked without renumbering every answer.
+    A letter is accepted as typed from the menu; a number is accepted too, so
+    a written attempt can be marked without converting every answer.
     """
     count = len(question["options"])
     text = str(value).strip()
@@ -144,15 +153,16 @@ def _option_number(value, question):
         number = int(text)
         if not 1 <= number <= count:
             raise ValueError(
-                f"{question['id']} must be answered 1-{count}.")
+                f"{question['id']} must be answered {option_label(1)}-"
+                f"{option_label(count)} or 1-{count}.")
         return number
-    letters = "abcdefgh"[:count]
+    letters = OPTION_LETTERS[:count].casefold()
     lowered = text.casefold()
     if lowered in letters:
         return letters.index(lowered) + 1
     raise ValueError(
-        f"{question['id']} must be answered 1-{count} or a letter a-"
-        f"{letters[-1]}.")
+        f"{question['id']} must be answered {option_label(1)}-"
+        f"{option_label(count)} or 1-{count}.")
 
 
 def check_answer(question, answer):
@@ -174,8 +184,9 @@ def check_answer(question, answer):
 def format_answer(entry):
     """Render one marked answer as the feedback shown after it is submitted."""
     verdict = "correct" if entry["correct"] else "incorrect"
-    lines = [f"{entry['id']}: {verdict} (answered {entry['given']}, "
-             f"correct is {entry['answer']})"]
+    lines = [f"{entry['id']}: {verdict} "
+             f"(answered {option_label(entry['given'])}, correct option is "
+             f"{option_label(entry['answer'])})"]
     if not entry["correct"]:
         lines.append(f"  Why: {entry['explanation']}")
     return "\n".join(lines)
@@ -228,8 +239,8 @@ def format_result(result):
     for entry in result["results"]:
         verdict = "correct" if entry["correct"] else "incorrect"
         lines.append(f"  {entry['id']}: {verdict} "
-                     f"(answered {entry['given']}, correct is "
-                     f"{entry['answer']})")
+                     f"(answered {option_label(entry['given'])}, correct is "
+                     f"{option_label(entry['answer'])})")
         if not entry["correct"]:
             lines.append(f"    Why: {entry['explanation']}")
     lines.append("Answers explained:")
