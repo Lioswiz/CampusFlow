@@ -15,7 +15,7 @@ PRIORITIES = ("critical", "high", "medium", "low")
 # The staff a ticket can be assigned to. A closed roster rather than free text,
 # so a stray number or a mis-spelling can never be stored as an assignee. The
 # order is the order the CLI offers them, so menu number and name line up.
-STAFF_NAMES = ("Kingsley", "Isaac", "Godswill", "Gabriel", "Ayuba", "Emmanuel")
+STAFF_NAMES = ("Mr Kingsley", "Mr Isaac", "Mr Godswill", "Mr Gabriel", "Mr Ayuba", "Mr Emmanuel")
 
 # The legal lifecycle edges. Anything not listed here is rejected before a
 # mutation happens, so a status can only ever move along these lines.
