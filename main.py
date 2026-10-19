@@ -295,7 +295,8 @@ def _check_flow(tickets, input_fn, print_fn):
         for question in understanding_check.QUESTIONS:
             print_fn(f"{question['id']}) {question['question']}")
             for number, option in enumerate(question["options"], start=1):
-                print_fn(f"  {number}) {option}")
+                label = understanding_check.option_label(number)
+                print_fn(f"  {label}) {option}")
             while True:
                 answer = input_fn("Answer: ")
                 try:
