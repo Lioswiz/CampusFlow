@@ -31,19 +31,19 @@ Responsibility is individual; delivery is shared.
 
 | Engineer | Name | Role | Owns |
 | --- | --- | --- | --- |
-| A | Edache John Ekoja | Ticket safety and storage | Validation rules, the ticket lifecycle guards, follow-up note data, JSON save/load/reload, ID continuity |
+| A | Edache John Ekoja | Ticket safety, workflow and storage | Validation rules, the ticket lifecycle guards, assignment and the work queue, follow-up note data, JSON save/load/reload, ID continuity |
 | B | Solomon Unegbe | Search, reporting and CLI | Ticket search and filtering, analytics reports, the note and search menus, the numbered CLI option pickers and error reporting, the Engineering Understanding Check |
 
-### Engineer A — Edache John Ekoja, ticket safety and storage
+### Engineer A — Edache John Ekoja, ticket safety, workflow and storage
 
-Owns the data and the rules. No ticket is created, assigned, transitioned or
-annotated without passing through these functions, and a refused operation
-leaves the collection exactly as it was.
+Owns the data, the rules and the workflow. Ticket creation, assignment,
+transitions, note-taking and persistence all pass through these functions, and
+a refused operation leaves the collection exactly as it was.
 
 | Files owned | |
 | --- | --- |
-| Code | `campusflow/validation.py`, `campusflow/notes.py`, `campusflow/storage.py`, `campusflow/tickets.py`, `campusflow/workflow.py`, `campusflow/search.py`, `campusflow/reports.py`, `campusflow/understanding_check.py`, `main.py` |
-| Tests | `tests/test_validation.py`, `tests/test_notes.py`, `tests/test_storage.py`, `tests/test_search.py`, `tests/test_reports.py`, `tests/test_understanding.py`, `tests/test_cli.py` |
+| Code | `campusflow/validation.py`, `campusflow/tickets.py`, `campusflow/workflow.py`, `campusflow/notes.py`, `campusflow/storage.py` |
+| Tests | `tests/test_validation.py`, `tests/test_tickets.py`, `tests/test_workflow.py`, `tests/test_notes.py`, `tests/test_storage.py` |
 
 | Function | Job |
 | --- | --- |
@@ -60,21 +60,33 @@ is unchanged. Validation always happens before any mutation.
 
 | Area | Job | Status | Implemented by |
 | --- | --- | --- | --- |
-| Search and filters | Case-insensitive title substring matching, plus combined category/status/priority filters | Done | Edache John Ekoja |
-| Re-prompting | An unusable search filter is reported and the menu shown again | Done | Edache John Ekoja |
-| Reports | Totals, status/priority/category counts, unresolved and resolved counts, resolution percentage | Done | Edache John Ekoja |
-| Note menus | Add and view follow-up notes by calling Edache's `add_note`, `list_notes` and `can_accept_notes` | Done | Edache John Ekoja |
-| Understanding Check | Six multiple-choice scenario questions, scored, with two answers explained | Done | Edache John Ekoja |
+| Assignment and lifecycle | Assignment, legal transitions, unassigned-work refusal and reopen | Done | Edache John Ekoja |
+| Work queue | Open tickets only, priority order, earlier numeric IDs first | Done | Edache John Ekoja |
+| Validation rules | Category, urgency, affected users, title, staff and identifier rules shared by every module | Done | Edache John Ekoja |
+| Priority engine | The four ordered rules, with boundary cases covered | Done | Edache John Ekoja |
+| Lifecycle table | `TRANSITIONS` and `can_transition` as the single source of legal status changes | Done | Edache John Ekoja |
+| Notes data layer | Per-ticket note IDs, resolved-ticket refusal and note-ID-ordered reading | Done | Edache John Ekoja |
+| Persistence | Atomic save, validated load and ID continuity after reload | Done | Edache John Ekoja |
 
 ### Engineer B — Solomon Unegbe, search, reporting and CLI
 
 Owns discovery and interaction. Everything here reads the collection through
 Edache's APIs and never edits a ticket itself.
 
+| Files owned | |
+| --- | --- |
+| Code | `campusflow/search.py`, `campusflow/reports.py`, `campusflow/understanding_check.py`, `main.py` |
+| Tests | `tests/test_search.py`, `tests/test_reports.py`, `tests/test_understanding.py`, `tests/test_cli.py` |
+
 | Area | Job | Status | Implemented by |
 | --- | --- | --- | --- |
-| CLI option pickers | Category and urgency chosen from numbered lists, with a typed value still accepted | Done | Edache John Ekoja |
-| CLI error handling | Every failure reported with a single `Error:` prefix instead of a bare message | Done | Edache John Ekoja |
+| Search and filters | Case-insensitive title substring matching, plus combined category/status/priority filters | Done | Solomon Unegbe |
+| Re-prompting | An unusable search filter is reported and the menu shown again | Done | Solomon Unegbe |
+| Reports | Totals, status/priority/category counts, unresolved and resolved counts, resolution percentage | Done | Solomon Unegbe |
+| Note menus | Add and view follow-up notes by calling Edache's `add_note`, `list_notes` and `can_accept_notes` | Done | Solomon Unegbe |
+| Understanding Check | Six multiple-choice scenario questions, scored, with two answers explained | Done | Solomon Unegbe |
+| CLI option pickers | Category and urgency chosen from labelled lists, with a typed value still accepted | Done | Solomon Unegbe |
+| CLI error handling | Every failure reported with a single `Error:` prefix instead of a bare message | Done | Solomon Unegbe |
 
 ### Shared responsibilities
 

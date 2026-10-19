@@ -7,9 +7,8 @@ simple on purpose — the goal is a shared contract, not a perfect architecture.
 
 | Area | Engineer | Files |
 | --- | --- | --- |
-| Ticket creation, validation, priority | A | `campusflow/tickets.py` |
-| Assignment, lifecycle, queue | B | `campusflow/workflow.py` |
-| Persistence, reports, CLI | C | `campusflow/storage.py`, `campusflow/reports.py`, `main.py` |
+| Ticket creation, validation, priority, workflow, notes and persistence | A — Edache John Ekoja | `campusflow/tickets.py`, `campusflow/validation.py`, `campusflow/workflow.py`, `campusflow/notes.py`, `campusflow/storage.py` |
+| Search, reports, CLI and understanding check | B — Solomon Unegbe | `campusflow/search.py`, `campusflow/reports.py`, `campusflow/understanding_check.py`, `main.py` |
 
 ## Function contracts (agreed before coding)
 

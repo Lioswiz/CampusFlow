@@ -1,15 +1,14 @@
 # AI learning log
 
 Recorded along the sprint using the guide's template (§5.3). Each engineer
-documents **three** interactions; at least one per engineer records a suggestion
-that was corrected, improved or rejected after checking it.
+documents at least two verified interactions; at least one per engineer records
+a suggestion that was corrected, improved or rejected after checking it.
 
-> Replace `Engineer A/B/C` with the fellows' real names before submission. Keep
-> the entries honest — do not claim a check you did not actually run.
+Keep the entries honest — do not claim a check you did not actually run.
 
 ---
 
-## Engineer A — ticket creation, validation and the priority engine
+## Edache John Ekoja (Engineer A) — ticket creation, validation and the priority engine
 
 ### Interaction #1 — Applying ordered business rules
 
@@ -49,9 +48,9 @@ that was corrected, improved or rejected after checking it.
 
 ---
 
-## Engineer B — assignment, lifecycle and the work queue
+## Edache John Ekoja (Engineer A) — assignment, lifecycle and the work queue
 
-### Interaction #1 — Modelling the lifecycle safely
+### Interaction #4 — Modelling the lifecycle safely
 
 - **Problem:** enforce `open → in_progress → resolved` without allowing shortcuts.
 - **My initial understanding:** one `set_status` function with a dict of allowed moves.
@@ -63,7 +62,7 @@ that was corrected, improved or rejected after checking it.
 - **Related file/commit:** `campusflow/workflow.py`.
 - **What I can now explain without AI:** why explicit transitions are easier to defend in review.
 
-### Interaction #2 — Blocking unassigned work
+### Interaction #5 — Blocking unassigned work
 
 - **Problem:** prevent an unassigned ticket from entering `in_progress`.
 - **My initial understanding:** check `assigned_to` for falsiness.
@@ -75,7 +74,7 @@ that was corrected, improved or rejected after checking it.
 - **Related file/commit:** `campusflow/workflow.py`, `start_work`.
 - **What I can now explain without AI:** why validating at entry and at use are both needed.
 
-### Interaction #3 — Sorting the queue (critical evaluation)
+### Interaction #6 — Sorting the queue (critical evaluation)
 
 - **Problem:** order the queue critical → high → medium → low, ties broken by earlier numeric ID.
 - **My initial understanding:** sort by the `priority` string and the `id` string.
@@ -89,9 +88,9 @@ that was corrected, improved or rejected after checking it.
 
 ---
 
-## Engineer C — persistence, reports and the CLI
+## Edache John Ekoja (Engineer A) — persistence
 
-### Interaction #1 — Safe JSON writes
+### Interaction #7 — Safe JSON writes
 
 - **Problem:** avoid a half-written, unparseable file if a save is interrupted.
 - **My initial understanding:** open the file and `json.dump` straight into it.
@@ -103,7 +102,7 @@ that was corrected, improved or rejected after checking it.
 - **Related file/commit:** `campusflow/storage.py`, `save_tickets`.
 - **What I can now explain without AI:** why `os.replace` is safer than opening the target file directly.
 
-### Interaction #2 — Missing vs corrupt files (critical evaluation)
+### Interaction #8 — Missing vs corrupt files (critical evaluation)
 
 - **Problem:** decide what `load_tickets` should do when the file is absent or broken.
 - **My initial understanding:** return `[]` for everything and move on.
@@ -115,7 +114,11 @@ that was corrected, improved or rejected after checking it.
 - **Related file/commit:** `campusflow/storage.py`, `load_tickets`; `main.py`, `run`.
 - **What I can now explain without AI:** the difference between "no data yet" and "data we cannot read".
 
-### Interaction #3 — Testing the menu without typing
+---
+
+## Solomon Unegbe (Engineer B) — CLI and menu testing
+
+### Interaction #1 — Testing the menu without typing
 
 - **Problem:** test the CLI without an interactive terminal.
 - **My initial understanding:** the menu would be untestable because it calls `input()`.
