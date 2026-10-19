@@ -296,7 +296,20 @@ def _check_flow(tickets, input_fn, print_fn):
             print_fn(f"{question['id']}) {question['question']}")
             for number, option in enumerate(question["options"], start=1):
                 print_fn(f"  {number}) {option}")
-            answers.append(input_fn("Answer: "))
+            while True:
+                answer = input_fn("Answer: ")
+                try:
+                    # Mark this question now, so the taker sees the verdict
+                    # before the next question is shown.
+                    entry = understanding_check.check_answer(question, answer)
+                except ValueError as error:
+                    # An unusable answer is reported and this same question
+                    # is asked again, instead of abandoning the whole check.
+                    _report_error(print_fn, str(error))
+                    continue
+                answers.append(answer)
+                break
+            print_fn(understanding_check.format_answer(entry))
             if question["explain"]:
                 explanations[question["id"]] = input_fn(
                     "Explain your answer in your own words: ")
